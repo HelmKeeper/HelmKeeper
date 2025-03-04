@@ -1,0 +1,6 @@
+**/temp-repo.yaml
+**/temp-repo.lock
+/.idea/.gitignore
+/.idea/HelmKeeper.iml
+/.idea/misc.xml
+/.idea/modules.xml

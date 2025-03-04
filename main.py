@@ -1,7 +1,3 @@
-import subprocess
-import uuid
-from readline import get_current_history_length
-
 import yaml
 import requests
 import argparse
@@ -34,24 +30,34 @@ def parse_chart(chart_path: str) -> Dict:
         return yaml.safe_load(f)
 
 
-def validate_chart_directory(directory: str) -> dict[str, dict | bool]:
+def validate_chart_directory(directory: str) -> bool | dict[str, dict]:
     """Validate that the input is a directory and contains Chart.yaml (mandatory) and Chart.lock (optional)."""
     result = {}
     if not os.path.isdir(directory):
-        print(f"Error: {directory} is not a valid directory.")
+        print(f"Error: {directory} is not a valid directory.") # Keep print statement for user feedback
         return False
 
+    # TODO: Considered requirement.yaml
     chart_yaml = os.path.join(directory, "Chart.yaml")
     chart_lock = os.path.join(directory, "Chart.lock")
 
     if not os.path.isfile(chart_yaml):
         print("Error: Chart.yaml is missing in the directory.")
-        sys.exit(1)
+        return False
 
-    result["yaml"] = parse_chart(chart_yaml)
+    try:
+        result["yaml"] = parse_chart(chart_yaml)
+
+    except yaml.YAMLError as e:
+        print(f"Error parsing Chart.yaml: {e}") # Informative message
+        return False
 
     if os.path.isfile(chart_lock):
-        result["lock"] = parse_chart(chart_lock)
+        try: # YAML parsing for Chart.lock
+            result["lock"] = parse_chart(chart_lock)
+        except yaml.YAMLError as e:
+            print(f"Error parsing Chart.lock: {e}")
+            return False  # Handle gracefully
     else:
         print("Warning: The Chart.lock file is missing.")
 
@@ -78,7 +84,7 @@ ARTIFACTHUB_API = "https://artifacthub.io/api/v1/packages/helm/"
 CVE_API = "https://osv.dev/v1/query"
 
 
-def get_latest_version2(package: str, repo: str) -> str:
+def get_latest_version2(package: str, repo: str) -> str | None:
     """Fetch the latest version of a Helm chart from ArtifactHub."""
     response = requests.get(f"{ARTIFACTHUB_API}{repo}/{package}")
     if response.status_code == 200:
@@ -89,10 +95,10 @@ def get_latest_version2(package: str, repo: str) -> str:
 def get_latest_version(name: str, repo_url: str):
     """Get latest chart version using helm and jq."""
     try:
-        example1 = system_call(f"helm repo add {name} {repo_url} --repository-config temp.yaml")
-        example2 = system_call("helm repo list --repository-config temp.yaml -o json")
-        ## TODO: Search if exists previus create. Repo admin module
-        example3 = system_call("helm repo update --repository-config temp.yaml")
+        example1 = system_call(f"helm repo add {name} {repo_url} --repository-config temp-repo.yaml")
+        example2 = system_call("helm repo list --repository-config temp-repo.yaml -o json")
+        ## TODO: Search if exists previous create. Repo admin module
+        example3 = system_call("helm repo update --repository-config temp-repo.yaml")
         result, status = system_call(f"helm search repo {name}/{name} -l -o json")
         charts = json.loads(result)
 
@@ -129,8 +135,8 @@ def update_chart(chart_path: str, dependencies: List[Dict]) -> None:
 
     chart['dependencies'] = dependencies
 
-    #with open(chart_path, 'w') as f:
-    #yaml.safe_dump(chart, f)
+    with open(chart_path, 'w') as f:
+        yaml.safe_dump(chart, f)
 
     print(f"Updated {chart_path} successfully!")
 
@@ -164,37 +170,11 @@ def process_chart(chart_path: str):
     for dep in dependencies:
         package = dep.get('name')
         repository = dep.get('repository')
-        concurrent_version = get_current_version(chart_data, package)
+        current_version = get_current_version(chart_data, package)
         latest_version = get_latest_version(package, repository)
         print(f"package: {package}")
-        print(f"concurrent_version: {concurrent_version}")
+        print(f"current_version: {current_version}")
         print(f"latest_version: {latest_version}")
-
-    """
-    dependencies = chart_data['yaml'].get('dependencies', [])
-    updated_dependencies = []
-    for dep in dependencies:
-        package = dep['name']
-        current_version = dep['version']
-        repository = dep['repository']
-        latest_version = get_latest_version(package, repository)
-
-        if latest_version and semver.compare(latest_version, current_version) > 0:
-            print(f"Update available for {package}: {current_version} -> {latest_version}")
-            vulnerabilities = check_vulnerabilities(package, latest_version)
-
-            if vulnerabilities:
-                print(f"Vulnerabilities found for {package} {latest_version}: {', '.join(vulnerabilities)}")
-            else:
-                print(f"No vulnerabilities found for {package} {latest_version}.")
-
-            dep['version'] = latest_version
-
-        updated_dependencies.append(dep)
-
-    update_chart(chart_path, updated_dependencies)
-    """
-
 
 def main():
     parser = argparse.ArgumentParser(description="Helm Chart Dependency Updater")
