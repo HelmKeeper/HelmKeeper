@@ -1,0 +1,30 @@
+name: HelmKeeper Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-charts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      # Example 1: Use the action defined in this repository
+      - name: Run HelmKeeper
+        id: helmkeeper
+        uses: ./ # Refers to the action.yml in the root
+        with:
+          chart-path: "./test/resources/gitlab"
+          check: "true"
+          output-json: "true"
+
+      # Example: Upload the JSON report if needed
+      - name: Upload Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: helm-report
+          path: helm-report.json

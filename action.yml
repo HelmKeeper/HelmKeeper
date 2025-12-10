@@ -1,0 +1,24 @@
+name: "HelmKeeper"
+description: "Dependency update checker and vulnerability scanner for Helm charts."
+inputs:
+  chart-path:
+    description: "Path to the Helm chart directory"
+    required: true
+  check:
+    description: "Fail the pipeline if updates or vulnerabilities are found"
+    required: false
+    default: "false"
+  output-json:
+    description: "Output report in JSON format"
+    required: false
+    default: "false"
+runs:
+  using: "docker"
+  image: "Dockerfile"
+  args:
+    - ${{ inputs.chart-path }}
+    - ${{ inputs.check == 'true' && '--check' || '' }}
+    - ${{ inputs.output-json == 'true' && '--json' || '' }}
+branding:
+  icon: "shield"
+  color: "blue"

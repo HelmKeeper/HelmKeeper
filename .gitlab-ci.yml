@@ -1,0 +1,21 @@
+# Example .gitlab-ci.yml for using HelmKeeper
+# Copy this job into your pipeline configuration
+
+stages:
+  - validate
+
+helm-keeper-check:
+  stage: validate
+  # Use the official Docker Hub image
+  image: marcodasilva/helmkeeper:latest
+  script:
+    - echo "Running HelmKeeper validation..."
+    # The entrypoint in the docker image defaults to python3 main.py
+    # We call it explicitly or pass args if entrypoint allows
+    # The Dockerfile ENTRYPOINT is ["python3", "main.py"], so we can just pass args:
+    - /app/main.py ./charts/my-app --check --json > helm-report.json
+  artifacts:
+    when: always
+    paths:
+      - helm-report.json
+  allow_failure: true
