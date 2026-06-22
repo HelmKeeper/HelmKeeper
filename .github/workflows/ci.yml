@@ -10,7 +10,7 @@ jobs:
   validate-charts:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
       # Example 1: Use the action defined in this repository
       - name: Run HelmKeeper
